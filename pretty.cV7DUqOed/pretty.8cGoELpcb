@@ -1,5 +1,6 @@
 import * as config from "@src/lib/config"
 import { browserBg } from "@src/lib/webext"
+import { sort } from "ramda"
 
 export function newtaburl() {
     // In the nonewtab version, this will return `null` and upset getURL.
@@ -25,13 +26,13 @@ export async function getBookmarks(query: string) {
     })
 
     // Get parents name
-    return bookmarks.map( x => {
+    return await Promise.all(
+        bookmarks.map(async x => {
             const parents = []
-            let parent = browserBg.bookmarks.get(x.parentId)
+            let parent = await browserBg.bookmarks.get(x.parentId)
             do {
                 parents.push(parent.title)
-                let parentId = parent.parentId
-                parent = browserBg.bookmarks.get(parentId)
+                parent = await browserBg.bookmarks.get(parent.parentId)
             } while (parent.hasOwnProperty("parentID"))
             return { bookmark: x, parents }
         }),
