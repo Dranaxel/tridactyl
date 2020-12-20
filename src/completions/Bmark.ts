@@ -9,22 +9,25 @@ class BmarkCompletionOption
 
     constructor(
         public value: string,
+        public parents: any[],
         bmark: browser.bookmarks.BookmarkTreeNode,
     ) {
         super()
         if (!bmark.title) {
             bmark.title = new URL(bmark.url).host
         }
+        const joinedParents = parents.join("")
 
         // Push properties we want to fuzmatch on
         this.fuseKeys.push(bmark.title, bmark.url)
+        console.log(parents)
 
         this.html = html`<tr class="BmarkCompletionOption option">
             <td class="prefix">${"".padEnd(2)}</td>
-            <td class="title">${bmark.title}</td>
+            <td class="title">${bmark.url}</td>
             <td class="content">
                 <a class="url" target="_blank" href=${bmark.url}
-                    >${bmark.url}</a
+                    >/${joinedParents}-${bmark.url}</a
                 >
             </td>
         </tr>`
@@ -74,7 +77,14 @@ export class BmarkCompletionSource extends Completions.CompletionSourceFuse {
         this.completion = undefined
         this.options = (await providers.getBookmarks(query))
             .slice(0, 10)
-            .map(page => new BmarkCompletionOption(option + page.url, page))
+            .map(
+                page =>
+                    new BmarkCompletionOption(
+                        option + page.bookmark.url,
+                        page.parents,
+                        page.bookmark,
+                    ),
+            )
 
         return this.updateChain()
     }

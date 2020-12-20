@@ -1,5 +1,6 @@
 import * as config from "@src/lib/config"
 import { browserBg } from "@src/lib/webext"
+import { sort } from "ramda"
 
 export function newtaburl() {
     // In the nonewtab version, this will return `null` and upset getURL.
@@ -11,15 +12,6 @@ export function newtaburl() {
 export async function getBookmarks(query: string) {
     // Search bookmarks, dedupe and sort by most recent.
     let bookmarks = await browserBg.bookmarks.search({ query })
-
-    // Remove folder nodes and bad URLs
-    bookmarks = bookmarks.filter(b => {
-        try {
-            return new URL(b.url)
-        } catch (e) {
-            return false
-        }
-    })
 
     bookmarks.sort((a, b) => b.dateAdded - a.dateAdded)
 
@@ -33,7 +25,18 @@ export async function getBookmarks(query: string) {
         }
     })
 
-    return bookmarks
+    // Get parents name
+    return await Promise.all(
+        bookmarks.map(async x => {
+            const parents = []
+            let parent = await browserBg.bookmarks.get(x.parentId)
+            do {
+                parents.push(parent.title)
+                parent = await browserBg.bookmarks.get(parent.parentId)
+            } while (parent.hasOwnProperty("parentID"))
+            return { bookmark: x, parents }
+        }),
+    )
 }
 
 function frecency(item: browser.history.HistoryItem) {
@@ -87,10 +90,13 @@ export async function getCombinedHistoryBmarks(
 
     // Join records by URL, using the title from bookmarks by preference.
     const combinedMap = new Map<string, any>(
-        bookmarks.map(bmark => [
-            bmark.url,
-            { title: bmark.title, url: bmark.url, bmark },
-        ]),
+        bookmarks.map(bmark => {
+            const bookmark = bmark.bookmark
+            return [
+                bookmark.url,
+                { title: bookmark.title, url: bookmark.url, bookmark },
+            ]
+        }),
     )
     history.forEach(page => {
         if (combinedMap.has(page.url)) combinedMap.get(page.url).history = page
