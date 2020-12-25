@@ -25,14 +25,11 @@ export async function getBookmarks(query: string) {
     })
 
     // Get parents name
-    return bookmarks.map( x => {
-            const parents = []
-            let parent = browserBg.bookmarks.get(x.parentId)
-            do {
-                parents.push(parent.title)
-                let parentId = parent.parentId
-                parent = browserBg.bookmarks.get(parentId)
-            } while (parent.hasOwnProperty("parentID"))
+    return await Promise.all(
+        bookmarks.map(async x => {
+            const parentId = x.parentId
+            const parent = await browserBg.bookmarks.get(parentId)
+            const parents = parent.map(x => x.title)
             return { bookmark: x, parents }
         }),
     )
